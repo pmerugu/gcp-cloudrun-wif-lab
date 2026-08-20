@@ -2,16 +2,10 @@ name: IAM Terraform Apply
 
 on:
   workflow_dispatch:
-    inputs:
-      plan_run_id:
-        description: "GitHub Actions run ID containing the CAB-approved Terraform plan"
-        required: true
-        type: string
 
 permissions:
   contents: read
   id-token: write
-  actions: read
 
 env:
   PROJECT_ID: employee-dev-505820
@@ -25,14 +19,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Download CAB-approved Terraform plan
-        uses: actions/download-artifact@v4
-        with:
-          name: iam-terraform-plan
-          path: ${{ env.TF_WORKING_DIR }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ inputs.plan_run_id }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
@@ -50,6 +36,14 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init
 
-      - name: Terraform Apply Approved Plan
+      - name: Terraform Validate
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply tfplan
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform plan
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve
