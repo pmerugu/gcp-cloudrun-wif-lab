@@ -1,0 +1,55 @@
+name: IAM Terraform Apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      plan_run_id:
+        description: "GitHub Actions run ID containing the CAB-approved Terraform plan"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+
+env:
+  PROJECT_ID: employee-dev-505820
+  TF_WORKING_DIR: onprem-web-migration/iam
+
+jobs:
+  terraform-apply:
+    name: IAM Terraform Apply
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download CAB-approved Terraform plan
+        uses: actions/download-artifact@v4
+        with:
+          name: iam-terraform-plan
+          path: ${{ env.TF_WORKING_DIR }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.plan_run_id }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/393053843777/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: terraform-deployer@employee-dev-505820.iam.gserviceaccount.com
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Terraform Apply Approved Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply tfplan
